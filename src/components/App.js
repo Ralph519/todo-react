@@ -1,12 +1,19 @@
 import React , { Component }  from 'react';
-import './App.css';
-import * as classnames from 'classnames';
+import '../App.css';
+import { all } from 'q';
+import ReactCSSTransitionGroup from 'react-addons-css-transition-group';
+import TodosRemaining from './todosremaining';
+import TodoItem from './TodoItem';
+import TodosCheckAll from './TodosCheckAll';
+import TodosFiltered from './TodosFiltered';
+import TodosClearCompleted from './TodosClearCompleted';
 
 class App extends Component {
 
   todoInput = React.createRef();
 
   state = {
+    filter: all,
     beforeEditCache: '',
     idForTodo: 4,
     todos: [
@@ -52,44 +59,54 @@ class App extends Component {
               />
 
               <table className="table table-hover">
-                <tbody>
-                  
-                    {this.state.todos.map((todo, index) => 
-                    <tr key={todo.id}>
-                      <th>< input type="checkbox" onChange={(event) => this.checkTodo(todo, index, event)} /></th>
-                      
-                      {!todo.editing &&
-                      <td 
-                        className={classnames({'completed': todo.completed})}
-                        onDoubleClick={(event) => this.editTodo(todo,index,event)}
-                      >{todo.title}</td>
-                      }
-
-                      {todo.editing &&
-                      <td> 
-                        <input 
-                          type="text" 
-                          autoFocus 
-                          defaultValue={todo.title}
-                          onBlur={(event) => this.doneEdit(todo, index, event)}
-                          onKeyUp=
-                              {(event) => {
-                                if(event.key==='Enter'){
-                                  this.doneEdit(todo, index, event);
-                                } else if (event.key==='Escape') {
-                                  this.cancelEdit(todo, index, event);
-                                }
-                              }}
-                        /> 
-                      </td>
-                      }
-
-                      <td><p className="remove-item" onClick={(event) => this.deleteTodo(index)}>&times;</p></td>
-                    </tr>
+                
+                    
+                    {this.todosFiltered().map((todo, index) => 
+                    <TodoItem 
+                      key={todo.id}
+                      todo={todo}
+                      index={index}
+                      checkTodo={this.checkTodo}
+                      editTodo={this.editTodo}
+                      doneEdit={this.doneEdit}
+                      cancelEdit={this.cancelEdit}
+                      deleteTodo={this.deleteTodo}
+                    />
+                    
                     )}
                  
-                </tbody>
+                
               </table>
+
+              <div className="extra-container">
+                <TodosCheckAll 
+                  anyRemaining={this.anyRemaining}
+                  checkAllTodos={this.checkAllTodos}
+                />
+                <TodosRemaining 
+                  remaining={this.remaining()} 
+                />
+                
+              </div>
+
+              <div className="extra-container">
+                <TodosFiltered
+                  updateFilter={this.updateFilter}
+                  filter={this.state.filter}
+                />
+                
+                <ReactCSSTransitionGroup
+                  transitionName="fade"
+                  transitionEnterTimeout={300}
+                  transitionLeaveTimeout={300}
+                >
+                  {this.todosCompletedCount() > 0 && 
+                  <TodosClearCompleted
+                    clearCompleted={this.clearCompleted}
+                  />
+                  }
+                </ReactCSSTransitionGroup>
+              </div>
            
 
             </div>
@@ -188,6 +205,54 @@ class App extends Component {
       todo.editing = false;
 
       todos.splice(index, 1, todo);
+
+      return {todos};
+    });
+  }
+
+  remaining = () => {
+    return this.state.todos.filter(todo => !todo.completed).length;
+  } 
+
+  anyRemaining = () => {
+    return this.remaining() !== 0;
+  }
+
+  todosCompletedCount = () => {
+    return this.state.todos.filter(todo => todo.completed).length;
+  }
+
+  clearCompleted = () => {
+    this.setState((prevState, props) => {
+     
+      return {
+        todos: prevState.todos.filter(todo => !todo.completed)};
+    });
+  }
+
+  updateFilter = filter => {
+    this.setState({ filter });
+  }
+
+  todosFiltered = () => {
+    if (this.state.filter === 'all'){
+      return this.state.todos;
+    } else if (this.state.filter === 'active'){
+      return this.state.todos.filter(todo => !todo.completed);
+    } else if (this.state.filter === 'completed'){
+      return this.state.todos.filter(todo => todo.completed);
+    }
+
+    return this.state.todos;
+  }
+
+  checkAllTodos = (event) => {
+    event.persist();
+
+    this.setState((prevState, props) => {
+      let todos = prevState.todos;
+
+      todos.forEach((todo) => todo.completed = event.target.checked); 
 
       return {todos};
     });
